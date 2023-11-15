@@ -21,7 +21,7 @@ int detectararchivo(FILE *archivo) {
     }
 }
 
-char** leercsv(FILE *archivo, const int **direcciones, char ***informacionparticulas, int *contadorparticulas) {
+char** leercsv(FILE *archivo, const char **direcciones, char ***informacionparticulas, int *contadorparticulas) {
     char separador;
 
     while (fscanf(archivo, "%d,%d,%c%c", &(*informacionparticulas)[*contadorparticulas][0], &(*informacionparticulas)[*contadorparticulas][1],
@@ -127,7 +127,7 @@ int main() {
     fseek(lectura, 0, SEEK_END);
     long int largo = ftell(lectura);
     rewind(lectura);
-    int *direcciones[] = {"r", "ur", "uc", "ul", "l", "dl", "dc", "dr"};
+    const char *direcciones[] = {"r", "ur", "uc", "ul", "l", "dl", "dc", "dr"};
     fseek(lectura, 1, SEEK_SET);
 
     int contadorparticulas = 0;
