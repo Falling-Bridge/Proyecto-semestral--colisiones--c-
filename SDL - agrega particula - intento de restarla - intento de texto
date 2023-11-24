@@ -1,0 +1,252 @@
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+int detectararchivo(FILE *archivo) {
+    char caracter = fgetc(archivo);
+
+    if (caracter == 'c') {
+        return 1;
+    } else if (caracter == 'b') {
+        return 2;
+    } else if (caracter == 't') {
+        return 3;
+    } else {
+        printf("No es un archivo de tipo csv, binario o txt.");
+        return -1;
+    }
+}
+
+int** leercsv(FILE *archivo, int *contadorparticulas, int ***informacionparticulas) {
+    *informacionparticulas = (int**)malloc(sizeof(int*));
+    (*informacionparticulas)[0] = (int*)malloc(sizeof(int) * 3);
+
+    while (fscanf(archivo, "%d,%d,%d,", &(*informacionparticulas)[*contadorparticulas][0], &(*informacionparticulas)[*contadorparticulas][1],
+                                        &(*informacionparticulas)[*contadorparticulas][2]) == 3) {
+        (*informacionparticulas)[*contadorparticulas][2] %= 8;
+        (*contadorparticulas)++;
+        if (feof(archivo)) {
+            break;
+        }
+        *informacionparticulas = realloc(*informacionparticulas, sizeof(int*) * ((*contadorparticulas) + 1));
+        (*informacionparticulas)[*contadorparticulas] = (int*)malloc(sizeof(int) * 3);
+    }
+    return *informacionparticulas;
+}
+
+int** leerbinario(FILE* archivo, int* contadorparticulas, int*** informacionparticulas) {
+    char grupo[32];
+    int cuenta = 0;
+    *informacionparticulas = (int**)malloc(sizeof(int*));
+    (*informacionparticulas)[0] = (int*)malloc(sizeof(int) * 3);
+
+    while (fscanf(archivo, "%32s", grupo) == 1) {
+        int decimal = 0;
+        for (int i = 0; i < 32; i++) {
+            if (grupo[i] == '1') {
+                decimal += 1 << (31 - i);
+            }
+        }
+        (*informacionparticulas)[*contadorparticulas][cuenta] = decimal;
+        if (cuenta == 2) {
+            (*informacionparticulas)[*contadorparticulas][cuenta] %= 8;
+        }
+        if (feof(archivo)) {
+            break;
+        }
+        cuenta++;
+        if (cuenta == 3) {
+            cuenta = 0;
+            (*contadorparticulas)++;
+            *informacionparticulas = realloc(*informacionparticulas, sizeof(int*) * ((*contadorparticulas) + 1));
+            (*informacionparticulas)[*contadorparticulas] = (int*)malloc(sizeof(int) * 3);
+        }
+    }
+
+    return *informacionparticulas;
+}
+
+int** leertxt(FILE *archivo, int *contadorparticulas, int ***informacionparticulas) {
+    *informacionparticulas = (int**)malloc(sizeof(int*));
+    (*informacionparticulas)[0] = (int*)malloc(sizeof(int) * 3);
+
+    while (fgetc(archivo) != '(' && !feof(archivo)) {
+        while (fscanf(archivo, "(%d,%d)", &(*informacionparticulas)[*contadorparticulas][0], &(*informacionparticulas)[*contadorparticulas][1]) == 2) {
+            (*informacionparticulas)[*contadorparticulas][2] = rand() % 8;
+            (*contadorparticulas)++;
+            if (feof(archivo)) {
+                break;
+            }
+            *informacionparticulas = realloc(*informacionparticulas, sizeof(int*) * ((*contadorparticulas) + 1));
+            (*informacionparticulas)[*contadorparticulas] = (int*)malloc(sizeof(int) * 3);
+        }
+    }
+
+    return *informacionparticulas;
+}
+
+int** colisiones(int contadorparticulas, int** informacionparticulas) {
+    for (int i = 0; i < contadorparticulas; i++) {
+        informacionparticulas[i][0] += 50;
+        informacionparticulas[i][1] -= 50;
+    }
+
+    return informacionparticulas;
+}
+
+// void renderizarTexto(SDL_Renderer* renderer, TTF_Font* font, const char* texto, int x, int y) {
+//     SDL_Color color = {255, 255, 255}; // Color blanco
+//     SDL_Surface* surface = TTF_RenderText_Solid(font, texto, color);
+//     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+//     SDL_Rect destRect = {x, y, surface->w, surface->h};
+//     SDL_RenderCopy(renderer, texture, NULL, &destRect);
+
+//     SDL_FreeSurface(surface);
+//     SDL_DestroyTexture(texture);
+// }
+
+int visualizar(int *contadorparticulas, int** informacionparticulas, SDL_Renderer* renderer, SDL_Rect *particulas, SDL_Window* ventana, TTF_Font* font) {
+    SDL_Event event;
+    int corriendo = 1;
+    int r = 255, g = 255, b = 255;  // Color de fondo y partículas inicial
+
+    while (corriendo) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_q) {
+                    corriendo = 0;
+                } else if (event.key.keysym.sym == SDLK_c) {
+                    r = rand() % 256;
+                    g = rand() % 256;
+                    b = rand() % 256;
+
+                    SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+                    SDL_RenderClear(renderer);
+                } else if (event.key.keysym.sym == SDLK_m) {
+                    informacionparticulas = colisiones(*contadorparticulas, informacionparticulas);
+                } else if (event.key.keysym.sym == SDLK_PLUS) {
+                    (*contadorparticulas)++;
+                    informacionparticulas = realloc(informacionparticulas, (*contadorparticulas) * sizeof(int*));
+                    informacionparticulas[*contadorparticulas - 1] = malloc(3 * sizeof(int));
+
+                    int ventanaAncho, ventanaAlto;
+                    SDL_GetWindowSize(ventana, &ventanaAncho, &ventanaAlto);
+
+                    informacionparticulas[*contadorparticulas - 1][0] = rand() % ventanaAncho;
+                    informacionparticulas[*contadorparticulas - 1][1] = rand() % ventanaAlto;
+                    informacionparticulas[*contadorparticulas - 1][2] = rand() % 8;
+
+                    // Ajustar el tamaño del arreglo de particulas para acomodar la nueva
+                    particulas = realloc(particulas, (*contadorparticulas) * sizeof(SDL_Rect));
+
+                    // Asignar la nueva partícula al arreglo de particulas
+                    particulas[*contadorparticulas - 1].x = informacionparticulas[*contadorparticulas - 1][0];
+                    particulas[*contadorparticulas - 1].y = informacionparticulas[*contadorparticulas - 1][1];
+                    particulas[*contadorparticulas - 1].h = 10;
+                    particulas[*contadorparticulas - 1].w = 10;
+                }
+                else if (event.key.keysym.sym == SDLK_MINUS && *contadorparticulas > 0) {
+                    free(informacionparticulas[*contadorparticulas - 1]);
+                    (*contadorparticulas)--;
+                    informacionparticulas = realloc(informacionparticulas, (*contadorparticulas) * sizeof(int*));
+                }
+            }
+        }
+
+        SDL_SetRenderDrawColor(renderer, 255 - r, 255 - g, 255 - b, 255);
+        SDL_RenderClear(renderer);
+
+        // Renderizar partículas
+        for (int i = 0; i < *contadorparticulas; i++) {
+            SDL_SetRenderDrawColor(renderer, r, g, b, 255);  // Color de las partículas
+            SDL_RenderFillRect(renderer, &particulas[i]);
+        }
+
+        // Renderizar cantidad de partículas
+        char texto[100];
+        sprintf(texto, "Cantidad de partículas: %d", *contadorparticulas);
+        // renderizarTexto(renderer, font, texto, 10, 10);
+
+        SDL_RenderPresent(renderer);
+    }
+
+    return 0;
+}
+
+int main(int argc, char* argv[]) {
+    char archivo[100];
+    printf("\nIngrese el nombre de su archivo:\n");
+    scanf("%s", archivo);
+    srand(time(NULL));
+
+    FILE *lectura = fopen(archivo, "r");
+    if (lectura == NULL) {
+        perror("Error al abrir el archivo");
+        return -1;
+    }
+
+    int tipo = detectararchivo(lectura);
+    int **informacionparticulas = NULL;
+    int contadorparticulas = 0;
+
+    if (tipo == 1) {
+        informacionparticulas = leercsv(lectura, &contadorparticulas, &informacionparticulas);
+    } else if (tipo == 2) {
+        informacionparticulas = leerbinario(lectura, &contadorparticulas, &informacionparticulas);
+    } else if (tipo == 3) {
+        informacionparticulas = leertxt(lectura, &contadorparticulas, &informacionparticulas);
+    }
+
+    fclose(lectura);
+
+    SDL_Window* ventana = NULL;
+    SDL_Renderer* renderer = NULL;
+    SDL_DisplayMode dimension;
+    SDL_GetCurrentDisplayMode(0, &dimension);
+    ventana = SDL_CreateWindow("HOLA", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, dimension.w, dimension.h, SDL_WINDOW_FULLSCREEN_DESKTOP);
+
+    if (ventana == NULL) {
+        printf("Error al crear la ventana: %s\n", SDL_GetError());
+        SDL_Quit();
+        return -1;
+    }
+
+    renderer = SDL_CreateRenderer(ventana, -1, SDL_RENDERER_ACCELERATED);
+    if (renderer == NULL) {
+        printf("Error al crear el renderer: %s\n", SDL_GetError());
+        SDL_DestroyWindow(ventana);
+        SDL_Quit();
+        return -1;
+    }
+
+    SDL_Rect *particulas = (SDL_Rect*)malloc(sizeof(SDL_Rect) * contadorparticulas);
+    for (int i = 0; i < contadorparticulas; i++) {
+        particulas[i].x = informacionparticulas[i][0];
+        particulas[i].y = informacionparticulas[i][1];
+        particulas[i].h = 10;
+        particulas[i].w = 10;
+    }
+
+    // TTF_Init(); // Inicializar SDL_ttf
+    // TTF_Font* font = TTF_OpenFont("Proyecto semestral/Bella Vista.ttf", 24);
+
+    // if (font == NULL) {
+    //     printf("Error al cargar la fuente: %s\n", TTF_GetError());
+    //     return -1;
+    // }
+
+    visualizar(&contadorparticulas, informacionparticulas, renderer, particulas, ventana, NULL);
+
+    free(particulas);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(ventana);
+    SDL_Quit();
+
+    // TTF_CloseFont(font); // Cerrar la fuente
+    // TTF_Quit(); // Finalizar SDL_ttf
+
+    return 0;
+}
