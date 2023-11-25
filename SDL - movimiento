@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+//todavía no uso el ttf
+
 void movimiento(int contadorparticulas, int** informacionparticulas, int ancho, int largo);
 
 int detectararchivo(FILE *archivo) {
@@ -92,14 +94,14 @@ int** leertxt(FILE *archivo, int *contadorparticulas, int ***informacionparticul
 
 void movimiento(int contadorparticulas, int** informacionparticulas, int ancho, int largo) {
     for (int i = 0; i < contadorparticulas; i++) {
-        informacionparticulas[i][0] += 5; // Aumento en X
-        informacionparticulas[i][1] += 5; // Aumento en Y
+        informacionparticulas[i][0] += 5;
+        informacionparticulas[i][1] += 5;
 
         if (informacionparticulas[i][0] >= ancho) {
-            informacionparticulas[i][0] = rand() % ancho; // Reiniciar en una posición aleatoria en X
+            informacionparticulas[i][0] = rand() % ancho;
         }
         if (informacionparticulas[i][1] >= largo) {
-            informacionparticulas[i][1] = rand() % largo; // Reiniciar en una posición aleatoria en Y
+            informacionparticulas[i][1] = rand() % largo;
         }
     }
 }
@@ -157,12 +159,11 @@ int visualizar(int *contadorparticulas, int** informacionparticulas, SDL_Rendere
         }
 
         SDL_RenderPresent(renderer);
-        SDL_Delay(50); // Añadimos un pequeño retardo para hacer el movimiento más lento y apreciable
+        SDL_Delay(50); //bendito pan de dios
     }
 
     return 0;
 }
-
 
 void liberarMemoria(int **informacionparticulas, int contadorparticulas) {
     for (int i = 0; i < contadorparticulas; i++) {
@@ -242,3 +243,4 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 }
+
