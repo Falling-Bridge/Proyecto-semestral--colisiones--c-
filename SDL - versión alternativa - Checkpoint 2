@@ -1,0 +1,359 @@
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+typedef struct {
+    int posicionx;
+    int posiciony;
+    int direccion;
+    int peso;
+} Particula;
+
+int detectararchivo(FILE* archivo) {
+    char caracter = fgetc(archivo);
+    if (caracter == 'c') {
+        return 1;
+    } else if (caracter == 'b') {
+        return 2;
+    } else if (caracter == 't') {
+        return 3;
+    } else {
+        printf("No tiene el formato especificado\n");
+        return -1;
+    }
+}
+
+Particula* leercsv(FILE* archivo, int* contadorparticulas) {
+    Particula* informacionparticulas = (Particula*)malloc(sizeof(Particula));
+
+    while (fscanf(archivo, "%d,%d,%d,", &informacionparticulas[*contadorparticulas].posicionx,
+                                        &informacionparticulas[*contadorparticulas].posiciony,
+                                        &informacionparticulas[*contadorparticulas].direccion) == 3) {
+        informacionparticulas[*contadorparticulas].direccion %= 8;
+        (*contadorparticulas)++;
+        if (feof(archivo)) {
+            break;
+        }
+        informacionparticulas = realloc(informacionparticulas, sizeof(Particula) * ((*contadorparticulas) + 1));
+    }
+    return informacionparticulas;
+}
+
+Particula* leerbinario(FILE* archivo, int* contadorparticulas) {
+    char grupo[32];
+    int cuenta = 0;
+    Particula* informacionparticulas = (Particula*)malloc(sizeof(Particula));
+
+    while (fscanf(archivo, "%32s", grupo) == 1) {
+        int decimal = 0;
+        for (int i = 0; i < 32; i++) {
+            if (grupo[i] == '1') {
+                decimal += 1 << (31 - i);
+            }
+        }
+
+        switch (cuenta) {
+            case 0:
+                informacionparticulas[*contadorparticulas].posicionx = decimal;
+                break;
+            case 1:
+                informacionparticulas[*contadorparticulas].posiciony = decimal;
+                break;
+            case 2:
+                informacionparticulas[*contadorparticulas].direccion = decimal % 8;
+                break;
+        }
+
+        if (feof(archivo)) {
+            break;
+        }
+
+        cuenta++;
+        if (cuenta == 3) {
+            cuenta = 0;
+            (*contadorparticulas)++;
+            informacionparticulas = realloc(informacionparticulas, sizeof(Particula) * ((*contadorparticulas) + 1));
+        }
+    }
+
+    return informacionparticulas;
+}
+
+Particula* leertxt(FILE* archivo, int* contadorparticulas) {
+    Particula* informacionparticulas = (Particula*)malloc(sizeof(Particula));
+
+    while (fgetc(archivo) != '(' && !feof(archivo)) {
+        while (fscanf(archivo, "(%d,%d,%d)", &informacionparticulas[*contadorparticulas].posicionx,
+                                              &informacionparticulas[*contadorparticulas].posiciony,
+                                              &informacionparticulas[*contadorparticulas].direccion) == 3) {
+            informacionparticulas[*contadorparticulas].direccion %= 8;
+            (*contadorparticulas)++;
+            if (feof(archivo)) {
+                break;
+            }
+            informacionparticulas = realloc(informacionparticulas, sizeof(Particula) * ((*contadorparticulas) + 1));
+        }
+    }
+
+    return informacionparticulas;
+}
+
+void movimiento(int contadorparticulas, Particula* informacionparticulas, int ancho, int largo, int *speed) {
+    SDL_Event velocidad;
+    int superior[] = {0, 4, 5, 6, 7};
+    int superiorizquierda[] = {0, 6, 7};
+    int izquierda[] = {0, 1, 2, 6, 7};
+    int inferiorizquierda[] = {0, 1, 2};
+    int inferior[] = {0, 1, 2, 3, 4};
+    int inferiordercha[] = {2, 3, 4};
+    int derecha[] = {2, 3, 4, 5, 6};
+    int superiorderecha[] = {4, 5, 6};
+    int random;
+    // Manejar eventos
+    while (SDL_PollEvent(&velocidad)) {
+        if (velocidad.type == SDL_KEYDOWN) {
+            if (velocidad.key.keysym.sym == SDLK_m) {
+                (*speed) += 10;  // Ajusta según tus necesidades
+            } else if (velocidad.key.keysym.sym == SDLK_l && (*speed) > 0) {
+                (*speed) -= 20;  // Ajusta según tus necesidades
+            }
+        }
+    }
+
+    for (int i = 0; i < contadorparticulas; i++) {
+        switch (informacionparticulas[i].direccion) {
+            case 0:  // Derecha
+                informacionparticulas[i].posicionx += (*speed);
+                informacionparticulas[i].posiciony = 0;
+                break;
+            case 1:  // Arriba Derecha
+                informacionparticulas[i].posicionx += (*speed);
+                informacionparticulas[i].posiciony -= (*speed);
+                break;
+            case 2:  // Arriba
+                informacionparticulas[i].posiciony -= (*speed);
+                informacionparticulas[i].posicionx = 0;
+                break;
+            case 3:  // Arriba Izquierda
+                informacionparticulas[i].posicionx -= (*speed);
+                informacionparticulas[i].posiciony -= (*speed);
+                break;
+            case 4:  // Izquierda
+                informacionparticulas[i].posicionx -= (*speed);
+                informacionparticulas[i].posiciony = 0;
+                break;
+            case 5:  // Abajo Izquierda
+                informacionparticulas[i].posicionx -= (*speed);
+                informacionparticulas[i].posiciony += (*speed);
+                break;
+            case 6:  // Abajo
+                informacionparticulas[i].posiciony += (*speed);
+                informacionparticulas[i].posicionx = 0;
+                break;
+            case 7:  // Abajo Derecha
+                informacionparticulas[i].posicionx += (*speed);
+                informacionparticulas[i].posiciony += (*speed);
+                break;
+        }
+
+        if (informacionparticulas[i].posiciony < 0) { //borde superior
+            random = rand () % 5;
+            informacionparticulas[i].direccion = superior[random];
+        }
+        if (informacionparticulas[i].posicionx < 0 && informacionparticulas[i].posiciony < 0) { //borde superior izquierdo
+            random = rand () % 3;
+            informacionparticulas[i].direccion = superiorizquierda[random];
+        }
+        if (informacionparticulas[i].posicionx < 0) { //borde izquierdo
+            random = rand () % 5;
+            informacionparticulas[i].direccion = izquierda[random];
+        }
+        if (informacionparticulas[i].posicionx < 0 && informacionparticulas[i].posiciony >= largo) { //borde izquierdo inferior
+            random = rand () % 3;
+            informacionparticulas[i].direccion = inferiorizquierda[random];
+        }
+        if (informacionparticulas[i].posiciony >= largo) { //borde inferior
+            random = rand () % 5;
+            informacionparticulas[i].direccion = inferior[random];
+        }
+
+        if (informacionparticulas[i].posicionx >= ancho && informacionparticulas[i].posiciony >= largo) { //borde derecho inferior
+            random = rand () % 3;
+            informacionparticulas[i].direccion = inferiordercha[random];
+        }
+        
+        if (informacionparticulas[i].posicionx >= ancho) { //borde derecho
+            random = rand () % 5;
+            informacionparticulas[i].direccion = derecha[random];
+        }
+
+        if (informacionparticulas[i].posicionx >= ancho && informacionparticulas[i].posiciony == 0) { //borde superior derecho
+            random = rand () % 3;
+            informacionparticulas[i].direccion = superiorderecha[random];
+        }
+    }
+}
+
+int visualizar(int* contadorparticulas, Particula* informacionparticulas, SDL_Renderer* renderer, SDL_Rect* particulas, SDL_Window* ventana, TTF_Font* font, int largo, int ancho) {
+    SDL_Event event;
+    int corriendo = 1;
+    int r = 255, g = 255, b = 255;
+    int speed = 5;
+
+    while (corriendo) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_q) {
+                    corriendo = 0;
+                } else if (event.key.keysym.sym == SDLK_c) {
+                    r = rand() % 256;
+                    g = rand() % 256;
+                    b = rand() % 256;
+                    SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+                    SDL_RenderClear(renderer);
+                } else if (event.key.keysym.sym == SDLK_p) {
+                    movimiento(*contadorparticulas, informacionparticulas, ancho, largo, &speed);
+                } else if (event.key.keysym.sym == SDLK_PLUS) {
+                    (*contadorparticulas)++;
+                    informacionparticulas = realloc(informacionparticulas, sizeof(Particula) * ((*contadorparticulas) + 1));
+
+                    informacionparticulas[*contadorparticulas - 1].posicionx = rand() % ancho;
+                    informacionparticulas[*contadorparticulas - 1].posiciony = rand() % largo;
+                    informacionparticulas[*contadorparticulas - 1].direccion = rand() % 8;
+
+                    particulas = realloc(particulas, sizeof(SDL_Rect) * ((*contadorparticulas) + 1));
+                    particulas[*contadorparticulas - 1].x = informacionparticulas[*contadorparticulas - 1].posicionx;
+                    particulas[*contadorparticulas - 1].y = informacionparticulas[*contadorparticulas - 1].posiciony;
+                    particulas[*contadorparticulas - 1].h = 10;
+                    particulas[*contadorparticulas - 1].w = 10;
+                } else if (event.key.keysym.sym == SDLK_MINUS && *contadorparticulas > 0) {
+                    (*contadorparticulas)--;
+                    informacionparticulas = realloc(informacionparticulas, sizeof(Particula) * ((*contadorparticulas) + 1));
+                    particulas = realloc(particulas, sizeof(SDL_Rect) * ((*contadorparticulas) + 1));
+                } else if (event.key.keysym.sym == SDLK_t) {
+                    // Borrar todas las partículas
+                    *contadorparticulas = 0;
+                    free(informacionparticulas);
+                    free(particulas);
+                    
+                    informacionparticulas = (Particula*)malloc(sizeof(Particula));
+                    particulas = (SDL_Rect*)malloc(sizeof(SDL_Rect));
+
+                    informacionparticulas[0].posicionx = rand() % ancho;
+                    informacionparticulas[0].posiciony = rand() % largo;
+                    informacionparticulas[0].direccion = rand() % 8;
+
+                    particulas[0].x = informacionparticulas[0].posicionx % ancho;
+                    particulas[0].y = informacionparticulas[0].posiciony % largo;
+                    particulas[0].h = 10;
+                    particulas[0].w = 10;
+                }
+            }
+        }
+
+        SDL_SetRenderDrawColor(renderer, 255 - r, 255 - g, 255 - b, 255);
+        SDL_RenderClear(renderer);
+
+        movimiento(*contadorparticulas, informacionparticulas, ancho, largo, &speed);
+
+        for (int i = 0; i < *contadorparticulas; i++) {
+            particulas[i].x = informacionparticulas[i].posicionx % ancho;
+            particulas[i].y = informacionparticulas[i].posiciony % largo;
+
+            // Ajustar coordenadas al rango adecuado
+            if (particulas[i].x < 0) {
+                particulas[i].x = ancho - 1;
+            }
+            if (particulas[i].x >= ancho) {
+                particulas[i].x = 0;
+            }
+            if (particulas[i].y < 0) {
+                particulas[i].y = largo - 1;
+            }
+            if (particulas[i].y >= largo) {
+                particulas[i].y = 0;
+            }
+
+            SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+            SDL_RenderFillRect(renderer, &particulas[i]);
+        }
+
+
+        SDL_RenderPresent(renderer);
+        SDL_Delay(50);
+    }
+
+    return 0;
+}
+
+int main(int argc, char* argv[]) {
+    char archivo[100];
+    printf("\nIngrese el nombre de su archivo:\n");
+    scanf("%s", archivo);
+    srand(time(NULL));
+
+    FILE* lectura = fopen(archivo, "r");
+    if (lectura == NULL) {
+        perror("Error al abrir el archivo");
+        return -1;
+    }
+
+    int tipo = detectararchivo(lectura);
+    if (tipo == 1 || tipo == 2 || tipo == 3) {
+        Particula* informacionparticulas = NULL;
+        int contadorparticulas = 0;
+
+        if (tipo == 1) {
+            informacionparticulas = leercsv(lectura, &contadorparticulas);
+        } else if (tipo == 2) {
+            informacionparticulas = leerbinario(lectura, &contadorparticulas);
+        } else if (tipo == 3) {
+            informacionparticulas = leertxt(lectura, &contadorparticulas);
+        }
+
+        fclose(lectura);
+
+        SDL_Window* ventana = NULL;
+        SDL_Renderer* renderer = NULL;
+
+        ventana = SDL_CreateWindow("HOLA", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0, SDL_WINDOW_SHOWN  | SDL_WINDOW_FULLSCREEN_DESKTOP);
+
+        if (ventana == NULL) {
+            printf("Error al crear la ventana: %s\n", SDL_GetError());
+            SDL_Quit();
+            return -1;
+        }
+
+        renderer = SDL_CreateRenderer(ventana, -1, SDL_RENDERER_ACCELERATED);
+        if (renderer == NULL) {
+            printf("Error al crear el renderer: %s\n", SDL_GetError());
+            SDL_DestroyWindow(ventana);
+            SDL_Quit();
+            return -1;
+        }
+
+        int ancho, largo;
+        SDL_GetWindowSize(ventana, &ancho, &largo);
+
+        SDL_Rect* particulas = (SDL_Rect*)malloc(sizeof(SDL_Rect) * contadorparticulas);
+
+        for (int i = 0; i < contadorparticulas; i++) {
+            particulas[i].x = (informacionparticulas[i].posicionx % ancho);
+            particulas[i].y = (informacionparticulas[i].posiciony % largo);
+            particulas[i].h = 10;
+            particulas[i].w = 10;
+        }
+
+        visualizar(&contadorparticulas, informacionparticulas, renderer, particulas, ventana, NULL, largo, ancho);
+        free(particulas);
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(ventana);
+        SDL_Quit();
+        free(informacionparticulas);
+        return 0;
+    } else {
+        return 0;
+    }
+}
