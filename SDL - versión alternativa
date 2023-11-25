@@ -1,0 +1,251 @@
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+typedef struct {
+    int posicionx;
+    int posiciony;
+    int direccion;
+    int peso;
+} Particula;
+
+void movimiento(int contadorparticulas, Particula* informacionparticulas, int ancho, int largo);
+
+int detectararchivo(FILE* archivo) {
+    char caracter = fgetc(archivo);
+    if (caracter == 'c') {
+        return 1;
+    } else if (caracter == 'b') {
+        return 2;
+    } else if (caracter == 't') {
+        return 3;
+    } else {
+        printf("No tiene el formato especificado\n");
+        return -1;
+    }
+}
+
+Particula* leercsv(FILE* archivo, int* contadorparticulas) {
+    Particula* informacionparticulas = (Particula*)malloc(sizeof(Particula));
+
+    while (fscanf(archivo, "%d,%d,%d,", &informacionparticulas[*contadorparticulas].posicionx,
+                                          &informacionparticulas[*contadorparticulas].posiciony,
+                                          &informacionparticulas[*contadorparticulas].direccion) == 3) {
+        informacionparticulas[*contadorparticulas].direccion %= 8;
+        (*contadorparticulas)++;
+        if (feof(archivo)) {
+            break;
+        }
+        informacionparticulas = realloc(informacionparticulas, sizeof(Particula) * ((*contadorparticulas) + 1));
+    }
+    return informacionparticulas;
+}
+
+Particula* leerbinario(FILE* archivo, int* contadorparticulas) {
+    char grupo[32];
+    int cuenta = 0;
+    Particula* informacionparticulas = (Particula*)malloc(sizeof(Particula));
+
+    while (fscanf(archivo, "%32s", grupo) == 1) {
+        int decimal = 0;
+        for (int i = 0; i < 32; i++) {
+            if (grupo[i] == '1') {
+                decimal += 1 << (31 - i);
+            }
+        }
+        informacionparticulas[*contadorparticulas].posicionx = decimal;
+
+        fscanf(archivo, "%32s", grupo);
+        decimal = 0;
+        for (int i = 0; i < 32; i++) {
+            if (grupo[i] == '1') {
+                decimal += 1 << (31 - i);
+            }
+        }
+        informacionparticulas[*contadorparticulas].posiciony = decimal;
+
+        fscanf(archivo, "%32s", grupo);
+        decimal = 0;
+        for (int i = 0; i < 32; i++) {
+            if (grupo[i] == '1') {
+                decimal += 1 << (31 - i);
+            }
+        }
+        informacionparticulas[*contadorparticulas].direccion = decimal % 8;
+
+        if (feof(archivo)) {
+            break;
+        }
+        (*contadorparticulas)++;
+        informacionparticulas = realloc(informacionparticulas, sizeof(Particula) * ((*contadorparticulas) + 1));
+    }
+
+    return informacionparticulas;
+}
+
+Particula* leertxt(FILE* archivo, int* contadorparticulas) {
+    Particula* informacionparticulas = (Particula*)malloc(sizeof(Particula));
+
+    while (fgetc(archivo) != '(' && !feof(archivo)) {
+        while (fscanf(archivo, "(%d,%d,%d)", &informacionparticulas[*contadorparticulas].posicionx,
+                                              &informacionparticulas[*contadorparticulas].posiciony,
+                                              &informacionparticulas[*contadorparticulas].direccion) == 3) {
+            informacionparticulas[*contadorparticulas].direccion %= 8;
+            (*contadorparticulas)++;
+            if (feof(archivo)) {
+                break;
+            }
+            informacionparticulas = realloc(informacionparticulas, sizeof(Particula) * ((*contadorparticulas) + 1));
+        }
+    }
+
+    return informacionparticulas;
+}
+
+void movimiento(int contadorparticulas, Particula* informacionparticulas, int ancho, int largo) {
+    for (int i = 0; i < contadorparticulas; i++) {
+        informacionparticulas[i].posicionx += 5;
+        informacionparticulas[i].posiciony += 5;
+
+        if (informacionparticulas[i].posicionx >= ancho) {
+            informacionparticulas[i].posicionx = rand() % ancho;
+        }
+        if (informacionparticulas[i].posiciony >= largo) {
+            informacionparticulas[i].posiciony = rand() % largo;
+        }
+    }
+}
+
+int visualizar(int* contadorparticulas, Particula* informacionparticulas, SDL_Renderer* renderer, SDL_Rect* particulas, SDL_Window* ventana, TTF_Font* font, int largo, int ancho) {
+    SDL_Event event;
+    int corriendo = 1;
+    int r = 255, g = 255, b = 255;
+
+    while (corriendo) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_q) {
+                    corriendo = 0;
+                } else if (event.key.keysym.sym == SDLK_c) {
+                    r = rand() % 256;
+                    g = rand() % 256;
+                    b = rand() % 256;
+                    SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+                    SDL_RenderClear(renderer);
+                } else if (event.key.keysym.sym == SDLK_p) {
+                    movimiento(*contadorparticulas, informacionparticulas, ancho, largo);
+                } else if (event.key.keysym.sym == SDLK_PLUS) {
+                    (*contadorparticulas)++;
+                    informacionparticulas = realloc(informacionparticulas, sizeof(Particula) * ((*contadorparticulas) + 1));
+
+                    informacionparticulas[*contadorparticulas - 1].posicionx = rand() % ancho;
+                    informacionparticulas[*contadorparticulas - 1].posiciony = rand() % largo;
+                    informacionparticulas[*contadorparticulas - 1].direccion = rand() % 8;
+
+                    particulas = realloc(particulas, sizeof(SDL_Rect) * ((*contadorparticulas) + 1));
+                    particulas[*contadorparticulas - 1].x = informacionparticulas[*contadorparticulas - 1].posicionx;
+                    particulas[*contadorparticulas - 1].y = informacionparticulas[*contadorparticulas - 1].posiciony;
+                    particulas[*contadorparticulas - 1].h = 10;
+                    particulas[*contadorparticulas - 1].w = 10;
+                } else if (event.key.keysym.sym == SDLK_MINUS && *contadorparticulas > 0) {
+                    (*contadorparticulas)--;
+                    informacionparticulas = realloc(informacionparticulas, sizeof(Particula) * ((*contadorparticulas) + 1));
+                    particulas = realloc(particulas, sizeof(SDL_Rect) * ((*contadorparticulas) + 1));
+                }
+            }
+        }
+
+        SDL_SetRenderDrawColor(renderer, 255 - r, 255 - g, 255 - b, 255);
+        SDL_RenderClear(renderer);
+
+        movimiento(*contadorparticulas, informacionparticulas, ancho, largo);
+
+        for (int i = 0; i < *contadorparticulas; i++) {
+            particulas[i].x = informacionparticulas[i].posicionx % ancho;
+            particulas[i].y = informacionparticulas[i].posiciony % largo;
+            SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+            SDL_RenderFillRect(renderer, &particulas[i]);
+        }
+
+        SDL_RenderPresent(renderer);
+        SDL_Delay(50);
+    }
+
+    return 0;
+}
+
+void liberarMemoria(Particula* informacionparticulas) {
+    free(informacionparticulas);
+}
+
+int main(int argc, char* argv[]) {
+    char archivo[100];
+    printf("\nIngrese el nombre de su archivo:\n");
+    scanf("%s", archivo);
+    srand(time(NULL));
+
+    FILE* lectura = fopen(archivo, "r");
+    if (lectura == NULL) {
+        perror("Error al abrir el archivo");
+        return -1;
+    }
+
+    int tipo = detectararchivo(lectura);
+    Particula* informacionparticulas = NULL;
+    int contadorparticulas = 0;
+
+    if (tipo == 1) {
+        informacionparticulas = leercsv(lectura, &contadorparticulas);
+    } else if (tipo == 2) {
+        informacionparticulas = leerbinario(lectura, &contadorparticulas);
+    } else if (tipo == 3) {
+        informacionparticulas = leertxt(lectura, &contadorparticulas);
+    }
+
+    fclose(lectura);
+
+    if (tipo == 1 || tipo == 2 || tipo == 3) {
+        SDL_Window* ventana = NULL;
+        SDL_Renderer* renderer = NULL;
+
+        ventana = SDL_CreateWindow("HOLA", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0, SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP);
+
+        if (ventana == NULL) {
+            printf("Error al crear la ventana: %s\n", SDL_GetError());
+            SDL_Quit();
+            return -1;
+        }
+
+        renderer = SDL_CreateRenderer(ventana, -1, SDL_RENDERER_ACCELERATED);
+        if (renderer == NULL) {
+            printf("Error al crear el renderer: %s\n", SDL_GetError());
+            SDL_DestroyWindow(ventana);
+            SDL_Quit();
+            return -1;
+        }
+
+        int ancho, largo;
+        SDL_GetWindowSize(ventana, &ancho, &largo);
+
+        SDL_Rect* particulas = (SDL_Rect*)malloc(sizeof(SDL_Rect) * contadorparticulas);
+
+        for (int i = 0; i < contadorparticulas; i++) {
+            particulas[i].x = (informacionparticulas[i].posicionx % ancho);
+            particulas[i].y = (informacionparticulas[i].posiciony % largo);
+            particulas[i].h = 10;
+            particulas[i].w = 10;
+        }
+
+        visualizar(&contadorparticulas, informacionparticulas, renderer, particulas, ventana, NULL, largo, ancho);
+        free(particulas);
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(ventana);
+        SDL_Quit();
+        liberarMemoria(informacionparticulas);
+        return 0;
+    } else {
+        return 0;
+    }
+}
