@@ -202,6 +202,23 @@ int visualizar(int* contadorparticulas, Particula* informacionparticulas, SDL_Re
                     (*contadorparticulas)--;
                     informacionparticulas = realloc(informacionparticulas, sizeof(Particula) * ((*contadorparticulas) + 1));
                     particulas = realloc(particulas, sizeof(SDL_Rect) * ((*contadorparticulas) + 1));
+                } else if (event.key.keysym.sym == SDLK_t) {
+                    // Borrar todas las partículas
+                    *contadorparticulas = 0;
+                    free(informacionparticulas);
+                    free(particulas);
+                    
+                    informacionparticulas = (Particula*)malloc(sizeof(Particula));
+                    particulas = (SDL_Rect*)malloc(sizeof(SDL_Rect));
+
+                    informacionparticulas[0].posicionx = rand() % ancho;
+                    informacionparticulas[0].posiciony = rand() % largo;
+                    informacionparticulas[0].direccion = rand() % 8;
+
+                    particulas[0].x = informacionparticulas[0].posicionx % ancho;
+                    particulas[0].y = informacionparticulas[0].posiciony % largo;
+                    particulas[0].h = 10;
+                    particulas[0].w = 10;
                 }
             }
         }
