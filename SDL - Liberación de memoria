@@ -14,7 +14,7 @@ int detectararchivo(FILE *archivo) {
     } else if (caracter == 't') {
         return 3;
     } else {
-        printf("No es un archivo de tipo csv, binario o txt.");
+        printf("No tiene el formato especificado\n");
         return -1;
     }
 }
@@ -73,8 +73,9 @@ int** leertxt(FILE *archivo, int *contadorparticulas, int ***informacionparticul
     (*informacionparticulas)[0] = (int*)malloc(sizeof(int) * 3);
 
     while (fgetc(archivo) != '(' && !feof(archivo)) {
-        while (fscanf(archivo, "(%d,%d)", &(*informacionparticulas)[*contadorparticulas][0], &(*informacionparticulas)[*contadorparticulas][1]) == 2) {
-            (*informacionparticulas)[*contadorparticulas][2] = rand() % 8;
+        while (fscanf(archivo, "(%d,%d,%d)", &(*informacionparticulas)[*contadorparticulas][0], &(*informacionparticulas)[*contadorparticulas][1], 
+                                             &(*informacionparticulas)[*contadorparticulas][2])  == 3) {
+            (*informacionparticulas)[*contadorparticulas][2] %= 8;
             (*contadorparticulas)++;
             if (feof(archivo)) {
                 break;
@@ -89,8 +90,8 @@ int** leertxt(FILE *archivo, int *contadorparticulas, int ***informacionparticul
 
 int** movimiento(int *contadorparticulas, int** informacionparticulas, int ancho, int largo) {
     for (int i = 0; i < *contadorparticulas; i++) {
-        informacionparticulas[i][0] += 50;
-        informacionparticulas[i][1] += 50;
+        informacionparticulas[i][0] += 150;  // Incremento en x
+        informacionparticulas[i][1] += 150;  // Incremento en y
 
         if (informacionparticulas[i][0] >= ancho) {
             informacionparticulas[i][0] = ancho - 1;
@@ -127,11 +128,8 @@ int visualizar(int *contadorparticulas, int** informacionparticulas, SDL_Rendere
                     informacionparticulas = realloc(informacionparticulas, (*contadorparticulas) * sizeof(int*));
                     informacionparticulas[*contadorparticulas - 1] = malloc(3 * sizeof(int));
 
-                    int ventanaAncho, ventanaAlto;
-                    SDL_GetWindowSize(ventana, &ventanaAncho, &ventanaAlto);
-
-                    informacionparticulas[*contadorparticulas - 1][0] = rand() % ventanaAncho;
-                    informacionparticulas[*contadorparticulas - 1][1] = rand() % ventanaAlto;
+                    informacionparticulas[*contadorparticulas - 1][0] = rand() % ancho;
+                    informacionparticulas[*contadorparticulas - 1][1] = rand() % largo;
                     informacionparticulas[*contadorparticulas - 1][2] = rand() % 8;
 
                     particulas = realloc(particulas, (*contadorparticulas) * sizeof(SDL_Rect));
@@ -222,8 +220,8 @@ int main(int argc, char* argv[]) {
 
     SDL_Rect *particulas = (SDL_Rect*)malloc(sizeof(SDL_Rect) * contadorparticulas);
     for (int i = 0; i < contadorparticulas; i++) {
-        particulas[i].x = informacionparticulas[i][0];
-        particulas[i].y = informacionparticulas[i][1];
+        particulas[i].x = (informacionparticulas[i][0] % ancho);
+        particulas[i].y = (informacionparticulas[i][1] % largo);
         particulas[i].h = 10;
         particulas[i].w = 10;
     }
@@ -236,3 +234,4 @@ int main(int argc, char* argv[]) {
     liberarMemoria(informacionparticulas, contadorparticulas);
     return 0;
 }
+
