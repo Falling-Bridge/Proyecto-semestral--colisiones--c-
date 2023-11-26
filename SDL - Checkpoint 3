@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/stat.h>
 
 typedef struct {
     int posicionx;
@@ -28,7 +29,7 @@ int detectararchivo(FILE* archivo) {
 Particula* leercsv(FILE* archivo, int* contadorparticulas) {
     Particula* informacionparticulas = (Particula*)malloc(sizeof(Particula));
 
-    while (fscanf(archivo, "%d,%d,%d,", &informacionparticulas[*contadorparticulas].posicionx,
+    while (fscanf(archivo, "%d,%d,%d,", &informacionparticulas[*contadorparticulas].posicionx, 
                                         &informacionparticulas[*contadorparticulas].posiciony,
                                         &informacionparticulas[*contadorparticulas].direccion) == 3) {
         informacionparticulas[*contadorparticulas].direccion %= 8;
@@ -151,7 +152,6 @@ void movimiento(int contadorparticulas, Particula* informacionparticulas, int an
                 informacionparticulas[i].posicionx += (*speed);
                 informacionparticulas[i].posiciony += (*speed);
                 break;
-
         }
 
         // Manejar rebotes en los bordes
@@ -252,7 +252,12 @@ int visualizar(int* contadorparticulas, Particula* informacionparticulas, SDL_Re
                 } else if (event.key.keysym.sym == SDLK_l){ // less velocidad
                     speed -= rand() % 15;
                 } else if (event.key.keysym.sym == SDLK_s){ // quit all processes and save state of the particles
-                    FILE* archivo_de_guardado = fopen("particlepositions.txt", "w");
+
+                    char nombre_carpeta[40]= "Colisionador de Adrones";
+                    if(access(nombre_carpeta,0) != 0){
+                        mkdir(nombre_carpeta);
+                    }
+                    FILE* archivo_de_guardado = fopen("Colisionador de Adrones/particuladedios.txt", "w");
                     if (archivo_de_guardado == NULL) {
                         perror("Error al abrir el archivo");
                         return -1;
@@ -260,10 +265,10 @@ int visualizar(int* contadorparticulas, Particula* informacionparticulas, SDL_Re
 
                     fprintf(archivo_de_guardado, "c");
                     for (int i = 0; i < *contadorparticulas; i++) {
-                        fprintf(archivo_de_guardado, "%d,%d,%d,", particulas[i].x, particulas[i].y, informacionparticulas[i].direccion);
+                        fprintf(archivo_de_guardado, "%d,%d,%d,\n", particulas[i].x, particulas[i].y, informacionparticulas[i].direccion);
                     }
                     corriendo = 0;
-                    printf("Se ha guardado la informacion de las particulas en el archivo 'particlepositions.txt'\n");
+                    printf("Se ha guardado la informacion de las particulas en la carpeta 'Colisionador de Adrones' en el archivo 'particuladedios.txt'\n");
                 }
             }
         }
