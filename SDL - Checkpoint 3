@@ -116,22 +116,10 @@ void colisiones(int *contadorparticulas, Particula* informacionparticulas, SDL_R
 }
 
 void movimiento(int contadorparticulas, Particula* informacionparticulas, int ancho, int largo, int* speed) {
-    SDL_Event velocidad;
     int superior[] = {0, 4, 5, 6, 7};
     int superiorizquierda[] = {0, 6, 7};
     int izquierda[] = {0, 1, 2, 6, 7};
     int random;
-
-    // Manejar eventos
-    while (SDL_PollEvent(&velocidad)) {
-        if (velocidad.type == SDL_KEYDOWN) {
-            if (velocidad.key.keysym.sym == SDLK_m) {
-                (*speed) += 20;  // Ajusta según tus necesidades
-            } else if (velocidad.key.keysym.sym == SDLK_l) {
-                (*speed) -= 20;  // Ajusta según tus necesidades
-            }
-        }
-    }
 
     for (int i = 0; i < contadorparticulas; i++) {
         switch (informacionparticulas[i].direccion) {
@@ -168,30 +156,42 @@ void movimiento(int contadorparticulas, Particula* informacionparticulas, int an
 
         // Manejar rebotes en los bordes
         if (informacionparticulas[i].posiciony < 0) { // Borde superior
+            informacionparticulas[i].posiciony = 0;
             random = rand() % 5;
             informacionparticulas[i].direccion = superior[random];
         }
         if (informacionparticulas[i].posicionx < 0) { // Borde izquierdo
+            informacionparticulas[i].posicionx = 0;
             random = rand() % 5;
             informacionparticulas[i].direccion = izquierda[random];
         }
-        if (informacionparticulas[i].posicionx < 0 && informacionparticulas[i].posiciony < 0) { // Borde superior izquierd
+        if (informacionparticulas[i].posicionx < 0 && informacionparticulas[i].posiciony < 0) { // Borde superior izquierda
+            informacionparticulas[i].posicionx = 0;
+            informacionparticulas[i].posiciony = 0;
             random = rand() % 3;
             informacionparticulas[i].direccion = superiorizquierda[random];
         }
         if (informacionparticulas[i].posicionx < 0 && informacionparticulas[i].posiciony >= largo) { // Borde izquierdo inferior //
+            informacionparticulas[i].posicionx = 0;
+            informacionparticulas[i].posiciony = largo - 1;
             informacionparticulas[i].direccion = rand() % 3;        
         }
         if (informacionparticulas[i].posiciony >= largo) { // Borde inferior //
+            informacionparticulas[i].posiciony = largo - 1;
             informacionparticulas[i].direccion = rand() % 5;       
         }
         if (informacionparticulas[i].posicionx >= ancho && informacionparticulas[i].posiciony >= largo) { // Borde derecho inferior //
+            informacionparticulas[i].posicionx = ancho - 1;
+            informacionparticulas[i].posiciony = largo - 1;
             informacionparticulas[i].direccion = rand() % 3 + 2;          
         }
         if (informacionparticulas[i].posicionx >= ancho) { // Borde derecho //
+            informacionparticulas[i].posicionx = ancho - 1;
             informacionparticulas[i].direccion = rand() % 5 + 2;
         }
-        if (informacionparticulas[i].posicionx >= ancho && informacionparticulas[i].posiciony == 0) { // Borde superior derecho
+        if (informacionparticulas[i].posicionx >= ancho && informacionparticulas[i].posiciony > 0) { // Borde superior derecho
+            informacionparticulas[i].posicionx = ancho -1;
+            informacionparticulas[i].posiciony = 0;
             informacionparticulas[i].direccion = rand() % 3 + 4;            
         }
     }
